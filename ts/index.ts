@@ -22,7 +22,7 @@ import {
 export { default as StorageRegistry } from './registry'
 
 export interface StorageCollection {
-    createObject(object, options? : CreateSingleOptions) : Promise<CreateSingleResult>
+    createObject<PK=string, T=any>(object : T, options? : CreateSingleOptions) : Promise<CreateSingleResult<PK, T>>
     findOneObject<T>(query, options?: FindSingleOptions) : Promise<T | null>
     findObjects<T>(query, options?: FindManyOptions) : Promise<Array<T>>
     countObjects(query, options?: CountOptions) : Promise<number>

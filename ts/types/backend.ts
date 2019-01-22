@@ -2,19 +2,19 @@ import StorageRegistry from "../registry"
 import { StorageBackendFeatureSupport } from "./backend-features";
 import { isRelationshipReference } from "./relationships";
 
-export type CreateSingleOptions = DBNameOptions
-export type CreateSingleResult = {object? : any}
+export type CreateSingleOptions = DBNameOptions & {incObject? : boolean}
+export type CreateSingleResult<PK, T> = {pk : PK, object? : T}
 export type FindSingleOptions = DBNameOptions & IgnoreCaseOptions & ReverseOptions & {fields?: string[]}
 export type FindManyOptions = FindSingleOptions & PaginationOptions
 export type CountOptions = DBNameOptions & IgnoreCaseOptions
-export type UpdateManyOptions = DBNameOptions
-export type UpdateManyResult = any
 export type UpdateSingleOptions = DBNameOptions
-export type UpdateSingleResult = any
+export type UpdateSingleResult = {count? : number}
+export type UpdateManyOptions = DBNameOptions
+export type UpdateManyResult = UpdateSingleResult
 export type DeleteSingleOptions = DBNameOptions
-export type DeleteSingleResult = any
+export type DeleteSingleResult = {count? : number}
 export type DeleteManyOptions = DBNameOptions & {limit? : number}
-export type DeleteManyResult = any
+export type DeleteManyResult = DeleteSingleResult
 
 export type IgnoreCaseOptions = {ignoreCase? : string[]}
 export type ReverseOptions = {reverse? : boolean}
@@ -71,7 +71,11 @@ export abstract class StorageBackend {
     async cleanup() : Promise<any> {}
     async migrate({database} : {database?} = {}) : Promise<any> {}
 
-    abstract async createObject(collection : string, object, options? : CreateSingleOptions)
+    abstract async createObject<PK=string, T=any>(
+        collection : string,
+        object : T,
+        options? : CreateSingleOptions,
+    ) : Promise<CreateSingleResult<PK, T>>
 
     abstract findObjects<T>(collection : string, query, options? : FindManyOptions) : Promise<Array<T>>
     async findObject<T>(collection : string, query, options? : FindSingleOptions) : Promise<T | null> {
@@ -117,7 +121,12 @@ export abstract class StorageBackend {
     async deleteObject(collection : string, object, options? : DeleteSingleOptions) : Promise<DeleteSingleResult> {
         const definition = this.registry.collections[collection]
         if (typeof definition.pkIndex === 'string') {
-            await this.deleteObjects(collection, {[definition.pkIndex]: object[definition.pkIndex]}, {...(options || {}), limit: 1})
+            return this.deleteObjects(collection, {
+                [definition.pkIndex]: object[definition.pkIndex],
+            }, {
+                ...(options || {}),
+                limit: 1,
+            })
         } else {
             throw new Error('Updating single objects with compound pks is not supported yet')
         }
